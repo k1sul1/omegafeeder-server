@@ -1,0 +1,31 @@
+{
+  "name": "omegafeeder",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "next build",
+    "start": "next start",
+    "dev": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/k1sul1/omegafeeder.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/k1sul1/omegafeeder/issues"
+  },
+  "homepage": "https://github.com/k1sul1/omegafeeder#readme",
+  "dependencies": {
+    "express": "^4.15.2",
+    "marked": "^0.3.6",
+    "next": "^2.3.1",
+    "react": "^15.5.4",
+    "react-dom": "^15.5.4",
+    "socket.io": "^1.7.4"
+  }
+}
