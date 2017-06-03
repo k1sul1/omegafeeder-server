@@ -2,60 +2,75 @@ const app = require('express')();
 const server = require('http').Server(app);
 const io = require('socket.io')(server);
 const next = require('next');
+const jwt = require('jsonwebtoken');
+const expressJwt = require('express-jwt');
+const socketioJWT = require('socketio-jwt');
 
 const dev = process.env.NODE_ENV !== 'production';
 const nextApp = next({ dev });
 const nextHandler = nextApp.getRequestHandler();
 
-const OMEGAFEEDER_CLIENT_ID = process.env.OMEGAFEEDER_CLIENT_ID
-  || 'OMEGAFEEDER_DEV';
-const OMEGAFEEDER_CLIENT_SECRET = process.env.OMEGAFEEDER_CLIENT_SECRET
-  || 'OMEGAFEEDER_DEV_SECRET';
+const PORT = process.env.PORT || 7890;
+const SECRET = process.env.SECRET || 'OMEGAFEEDER_SECRET';
+const USERNAME = process.env.USERNAME || 'USERNAME';
+const PASSWORD = process.env.PASSWORD || 'PASSWORD';
 
-const isAuthenticated = (client_id, client_secret) => {
-  if (
-    OMEGAFEEDER_CLIENT_ID === client_id
-    &&
-    OMEGAFEEDER_CLIENT_SECRET === client_secret
-  ) {
-    return true;
+const getToken = (user, pass) => {
+  if (!(user === USERNAME && pass === PASSWORD)) {
+    return false;
   }
 
-  return false;
-}
+  const profile = {
+    first_name: 'John',
+    last_name: 'Doe',
+    email: 'john@doe.com',
+    id: 123
+  };
 
-io.on('connection', (socket) => {
-  let authenticated = false;
-  socket.emit('authenticate', { message: 'Authenticate yourself' });
-  socket.on('authenticate', data => {
-    authenticated = isAuthenticated(data.CLIENT_ID, data.CLIENT_SECRET);
+  return jwt.sign(profile, SECRET, { expiresIn: "1 day" });
+};
 
-    if (!authenticated) {
-      socket.emit('not-authenticated', { 'message': 'not authenticated' });
-      socket.disconnect(true);
-    } else {
-      socket.emit('authenticated', { 'message': 'authenticated' });
-    }
-  });
+io.on('connection', socketioJWT.authorize({
+  secret: SECRET,
+  timeout: 15000
+})).on('authenticated', function(socket) {
+  console.log(socket);
 });
 
 nextApp.prepare().then(() => {
+  app.get('/authenticate', (req, res) => {
+    const token = getToken(req.query.username, req.query.password);
+
+    if (token) {
+      res.json({ token: token });
+      return;
+    }
+
+    res.status(401).json({ error: 'Wrong username or password' });
+  });
+
+  app.use('/admin', expressJwt({ secret: PASSWORD }));
+  app.get('/admin', (req, res) => {
+    const actualPage = '/admin';
+    const queryParams = { id: req.params.id };
+    app.render(req, res, actualPage, queryParams);
+  });
+
   app.get('/p/:id', (req, res) => {
     const actualPage = '/post';
-    const queryParams = { title: req.params.id };
-    nextApp.render(req, res, actualPage, queryParams);
+    const queryParams = { id: req.params.id };
+    app.render(req, res, actualPage, queryParams);
   });
 
   app.get('*', (req, res) => {
     return nextHandler(req, res);
   });
 
-  server.listen(8000, (err) => {
+  server.listen(PORT, (err) => {
     if (err) throw err;
-    console.log('> Ready on http://localhost:8000');
+    console.log(`> Ready on http://localhost:${PORT}`);
   });
-})
-.catch((ex) => {
+}).catch((ex) => {
   console.error(ex.stack);
   process.exit(1);
 });
